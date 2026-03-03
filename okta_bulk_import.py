@@ -34,7 +34,7 @@ def load_users_from_excel(file_path: str) -> list[dict]:
 
     header = [str(cell).strip().lower() if cell else "" for cell in rows[0]]
 
-    required = {"first name", "last name", "email"}
+    required = {"firstname", "lastname", "email"}
     if not required.issubset(set(header)):
         print(f"Error: Missing required columns. Found: {header}")
         print(f"Required: {required}")
