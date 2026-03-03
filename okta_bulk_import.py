@@ -11,7 +11,7 @@ Environment variables:
     OKTA_API_TOKEN - Your Okta API token
 
 The Excel file should have the following columns (first row is the header):
-    First Name | Last Name | Email
+    FirstName | LastName | Email
 """
 
 import argparse
@@ -23,7 +23,7 @@ import requests
 
 
 def load_users_from_excel(file_path: str) -> list[dict]:
-    """Read users from an Excel file. Expects columns: First Name, Last Name, Email."""
+    """Read users from an Excel file. Expects columns: FirstName, LastName, Email."""
     wb = openpyxl.load_workbook(file_path, read_only=True)
     ws = wb.active
 
@@ -34,14 +34,14 @@ def load_users_from_excel(file_path: str) -> list[dict]:
 
     header = [str(cell).strip().lower() if cell else "" for cell in rows[0]]
 
-    required = {"first name", "last name", "email"}
+    required = {"firstname", "lastname", "email"}
     if not required.issubset(set(header)):
         print(f"Error: Missing required columns. Found: {header}")
         print(f"Required: {required}")
         sys.exit(1)
 
-    first_idx = header.index("first name")
-    last_idx = header.index("last name")
+    first_idx = header.index("firstname")
+    last_idx = header.index("lastname")
     email_idx = header.index("email")
 
     users = []

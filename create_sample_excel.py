@@ -7,7 +7,7 @@ wb = openpyxl.Workbook()
 ws = wb.active
 ws.title = "Users"
 
-ws.append(["First Name", "Last Name", "Email"])
+ws.append(["FirstName", "LastName", "Email"])
 ws.append(["Jane", "Doe", "jane.doe@example.com"])
 ws.append(["John", "Smith", "john.smith@example.com"])
 ws.append(["Alice", "Johnson", "alice.johnson@example.com"])
