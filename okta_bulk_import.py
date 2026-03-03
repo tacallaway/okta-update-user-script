@@ -4,7 +4,7 @@ Bulk import users from an Excel spreadsheet into Okta in a staged state
 (no activation email sent).
 
 Usage:
-    python okta_bulk_import.py --file users.xlsx
+    python okta_bulk_import.py --file users.xlsx --group-id 00g1234567890abcdef
 
 Environment variables:
     OKTA_DOMAIN  - Your Okta domain (e.g. https://yourorg.okta.com)
@@ -59,14 +59,19 @@ def load_users_from_excel(file_path: str) -> list[dict]:
     return users
 
 
-def create_okta_user(domain: str, api_token: str, user: dict) -> bool:
-    """Create a single user in Okta in the STAGED state (no activation email)."""
-    url = f"{domain}/api/v1/users?activate=false"
+def create_okta_user(domain: str, api_token: str, user: dict, group_id: str | None) -> bool:
+    """Create a single user in Okta in the STAGED state (no activation email).
+
+    If group_id is provided, the user is also added to that group.
+    """
     headers = {
         "Authorization": f"SSWS {api_token}",
         "Content-Type": "application/json",
         "Accept": "application/json",
     }
+
+    # 1. Create the user
+    url = f"{domain}/api/v1/users?activate=false"
     payload = {
         "profile": {
             "firstName": user["firstName"],
@@ -78,12 +83,25 @@ def create_okta_user(domain: str, api_token: str, user: dict) -> bool:
 
     resp = requests.post(url, json=payload, headers=headers, timeout=30)
 
-    if resp.status_code == 200:
-        print(f"  Created (staged): {user['email']}")
-        return True
+    if resp.status_code != 200:
+        print(f"  FAILED ({resp.status_code}): {user['email']} — {resp.text}")
+        return False
 
-    print(f"  FAILED ({resp.status_code}): {user['email']} — {resp.text}")
-    return False
+    print(f"  Created (staged): {user['email']}")
+
+    # 2. Add the user to the group
+    if group_id:
+        user_id = resp.json()["id"]
+        group_url = f"{domain}/api/v1/groups/{group_id}/users/{user_id}"
+        group_resp = requests.put(group_url, headers=headers, timeout=30)
+
+        if group_resp.status_code == 204:
+            print(f"    Added to group {group_id}")
+        else:
+            print(f"    WARNING: Created user but failed to add to group "
+                  f"({group_resp.status_code}): {group_resp.text}")
+
+    return True
 
 
 def main():
@@ -92,6 +110,10 @@ def main():
     )
     parser.add_argument(
         "--file", required=True, help="Path to the Excel (.xlsx) file."
+    )
+    parser.add_argument(
+        "--group-id", required=False, default=None,
+        help="Okta group ID to add each user to after creation.",
     )
     args = parser.parse_args()
 
@@ -107,12 +129,14 @@ def main():
         print("No valid users found in the spreadsheet.")
         sys.exit(1)
 
-    print(f"Importing {len(users)} user(s) into Okta ({domain}) …\n")
+    group_id = args.group_id
+    group_msg = f", adding to group {group_id}" if group_id else ""
+    print(f"Importing {len(users)} user(s) into Okta ({domain}){group_msg} …\n")
 
     success = 0
     failed = 0
     for user in users:
-        if create_okta_user(domain, api_token, user):
+        if create_okta_user(domain, api_token, user, group_id):
             success += 1
         else:
             failed += 1
